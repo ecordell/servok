@@ -1,12 +1,12 @@
-#!/usr/bin/env -S buf generate ../protos/servok --template
-version: "v1beta1"
+#!/usr/bin/env -S buf generate ./protos  --template
+version: "v1"
 plugins:
-  - name: "go"
-    out: "internal/proto"
+  - remote: "buf.build/library/plugins/go:v1.27.1-1"
+    out: "proto"
     opt: "paths=source_relative"
-  - name: "go-grpc"
-    out: "internal/proto"
+  - remote: "buf.build/library/plugins/go-grpc:v1.1.0-2"
+    out: "proto"
     opt: "paths=source_relative"
   - name: "validate"
-    out: "internal/proto"
+    out: "proto"
     opt: "paths=source_relative,lang=go"

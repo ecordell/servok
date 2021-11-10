@@ -24,10 +24,18 @@ message WatchRequest {
     } ];
   }
 
+  message KubeServiceRequest {
+    string service = 1 [ (validate.rules).string = {
+      pattern : "^[a-z0-9]([a-z0-9-\\.]{0,251}[a-z0-9])?$",
+      max_bytes : 253,
+    } ];
+  }
+
   oneof request_type_oneof {
     option (validate.required) = true;
 
     SRVRequest srv = 1 [ (validate.rules).message.required = true ];
+    KubeServiceRequest kube = 2 [ (validate.rules).message.required = true ];
   }
 }
 

@@ -12,7 +12,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/jzelinskie/cobrautil v0.0.5
 	github.com/jzelinskie/stringz v0.0.1 // indirect
-	github.com/prometheus/client_golang v0.9.4
+	github.com/prometheus/client_golang v1.11.0
 	github.com/rs/zerolog v1.25.0
 	github.com/spf13/cobra v1.2.1
 	github.com/stretchr/testify v1.7.0
@@ -20,4 +20,7 @@ require (
 	go.opentelemetry.io/otel/exporters/jaeger v1.0.0 // indirect
 	google.golang.org/grpc v1.41.0
 	google.golang.org/protobuf v1.27.1
+	k8s.io/cli-runtime v0.22.3
+	k8s.io/component-base v0.22.3
+	k8s.io/kubectl v0.22.3
 )

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -25,12 +26,17 @@ import (
 	"google.golang.org/grpc/credentials"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/component-base/cli/globalflag"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	v1 "github.com/authzed/servok/internal/proto/servok/api/v1"
 	"github.com/authzed/servok/internal/services"
 )
 
 func main() {
+	kubeFlags := genericclioptions.NewConfigFlags(true)
+
 	rootCmd := &cobra.Command{
 		Use:   "servok",
 		Short: "Serve endpoint metadata for client side load balancing.",
@@ -38,7 +44,9 @@ func main() {
 			cobrautil.SyncViperPreRunE("servok"),
 			cobrautil.ZeroLogPreRunE,
 		),
-		Run: rootRun,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return rootRun(cmd, args, cmdutil.NewFactory(kubeFlags))
+		},
 	}
 
 	rootCmd.Flags().String("grpc-addr", ":50051", "address to listen on for serving gRPC services")
@@ -46,14 +54,16 @@ func main() {
 	rootCmd.Flags().String("grpc-key-path", "", "local path to the TLS key used to serve gRPC services")
 	rootCmd.Flags().Bool("grpc-no-tls", false, "serve unencrypted gRPC services")
 	rootCmd.Flags().String("metrics-addr", ":9090", "address to listen on for serving metrics and profiles")
-
+	kubeFlags.AddFlags(rootCmd.PersistentFlags())
+	globalflag.AddGlobalFlags(rootCmd.PersistentFlags(),"servok")
 	cobrautil.RegisterZeroLogFlags(rootCmd.Flags())
 
 	rootCmd.Execute()
 }
 
-func rootRun(cmd *cobra.Command, args []string) {
+func rootRun(cmd *cobra.Command, args []string, f cmdutil.Factory) error {
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	var sharedOptions []grpc.ServerOption
 	sharedOptions = append(sharedOptions, grpcmw.WithUnaryServerChain(
@@ -63,6 +73,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 		validator.UnaryServerInterceptor(),
 	))
 
+	// TODO: cobrautil
 	var grpcServer *grpc.Server
 	if cobrautil.MustGetBool(cmd, "grpc-no-tls") {
 		grpcServer = grpc.NewServer(sharedOptions...)
@@ -74,7 +85,7 @@ func rootRun(cmd *cobra.Command, args []string) {
 			sharedOptions...,
 		)
 		if err != nil {
-			log.Fatal().Err(err).Msg("failed to create TLS gRPC server")
+			return fmt.Errorf("failed to create TLS gRPC server: %w", err)
 		}
 	}
 
@@ -117,12 +128,12 @@ func rootRun(cmd *cobra.Command, args []string) {
 	<-signalctx.Done()
 
 	log.Info().Msg("shutting down")
-	cancel()
 	grpcServer.GracefulStop()
 
 	if err := metricsrv.Close(); err != nil {
 		log.Fatal().Err(err).Msg("failed while shutting down metrics server")
 	}
+	return nil
 }
 
 func NewMetricsServer(addr string) *http.Server {
